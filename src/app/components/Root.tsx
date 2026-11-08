@@ -1,16 +1,42 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
 import { Film, Star, Newspaper, Menu, X, User, LogOut } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import logo from "../../assets/toonframe-logo.png";
 import logoWhite from "../../assets/toonframe-logo-white.png";
 import { ThemeToggle } from "./ThemeToggle";
+import { SearchButton, SearchPanel, useSearchShortcut } from "./SearchBar";
 
 export function Root() {
   const location = useLocation();
   const navigate = useNavigate();
   const { isLoggedIn, currentProfile, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const openSearch = useCallback(() => {
+    setMobileMenuOpen(false);
+    setSearchOpen(true);
+  }, []);
+
+  const closeSearch = useCallback((restoreFocus = false) => {
+    setSearchOpen(false);
+    if (restoreFocus) {
+      // devolve o foco ao botão de busca que estiver visível (há um no celular e outro no desktop)
+      window.requestAnimationFrame(() => {
+        const triggers = Array.from(document.querySelectorAll<HTMLElement>("[data-search-trigger]"));
+        triggers.find((el) => el.offsetParent !== null)?.focus();
+      });
+    }
+  }, []);
+
+  // "/" ou Ctrl/⌘ + K abrem a busca
+  useSearchShortcut(openSearch);
+
+  // a busca fecha sozinha quando a página muda (inclusive pelo botão "voltar")
+  useEffect(() => {
+    setSearchOpen(false);
+  }, [location.pathname, location.search]);
 
   // Redirecionar para login se não estiver logado
   useEffect(() => {
@@ -53,9 +79,13 @@ export function Root() {
 
             {/* Mobile: tema + botão do menu */}
             <div className="lg:hidden flex items-center gap-2">
+              <SearchButton open={searchOpen} onClick={() => (searchOpen ? closeSearch() : openSearch())} />
               <ThemeToggle />
               <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                onClick={() => {
+                  setSearchOpen(false);
+                  setMobileMenuOpen(!mobileMenuOpen);
+                }}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
                 aria-label="Abrir ou fechar menu"
                 aria-expanded={mobileMenuOpen}
@@ -72,7 +102,7 @@ export function Root() {
             <nav className="hidden lg:flex gap-1 items-center">
               <Link
                 to="/home"
-                className={`flex items-center gap-2 px-6 py-3 transition-colors ${
+                className={`flex items-center gap-2 px-3 xl:px-6 py-3 transition-colors ${
                   isActive("/home") && location.pathname === "/home"
                     ? "bg-black dark:bg-neutral-100 dark:text-black text-white"
                     : "hover:bg-gray-100 dark:hover:bg-neutral-800"
@@ -83,7 +113,7 @@ export function Root() {
               </Link>
               <Link
                 to="/reviews"
-                className={`flex items-center gap-2 px-6 py-3 transition-colors ${
+                className={`flex items-center gap-2 px-3 xl:px-6 py-3 transition-colors ${
                   isActive("/reviews")
                     ? "bg-blue-500 dark:bg-blue-600 text-white"
                     : "hover:bg-gray-100 dark:hover:bg-neutral-800"
@@ -94,7 +124,7 @@ export function Root() {
               </Link>
               <Link
                 to="/news"
-                className={`flex items-center gap-2 px-6 py-3 transition-colors ${
+                className={`flex items-center gap-2 px-3 xl:px-6 py-3 transition-colors ${
                   isActive("/news")
                     ? "bg-orange-500 dark:bg-orange-700 text-white"
                     : "hover:bg-gray-100 dark:hover:bg-neutral-800"
@@ -105,7 +135,7 @@ export function Root() {
               </Link>
               <Link
                 to="/profile"
-                className={`flex items-center gap-2 px-6 py-3 transition-colors ${
+                className={`flex items-center gap-2 px-3 xl:px-6 py-3 transition-colors ${
                   isActive("/profile")
                     ? "bg-yellow-400 text-black"
                     : "hover:bg-gray-100 dark:hover:bg-neutral-800"
@@ -118,18 +148,24 @@ export function Root() {
               <ThemeToggle className="ml-2" />
 
               {/* User Info */}
-              <div className="ml-2 px-4 py-2 bg-gray-100 dark:bg-neutral-800 border-2 border-black dark:border-neutral-400">
+              <div className="hidden xl:block ml-2 px-4 py-2 bg-gray-100 dark:bg-neutral-800 border-2 border-black dark:border-neutral-400">
                 <p className="text-xs text-gray-600 dark:text-gray-300">Logado como</p>
                 <p className="font-black text-sm">{currentProfile?.profile.name}</p>
               </div>
               
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 px-6 py-3 transition-colors hover:bg-red-50 dark:hover:bg-red-950 text-red-600 dark:text-red-400"
+                className="flex items-center gap-2 px-3 xl:px-6 py-3 transition-colors hover:bg-red-50 dark:hover:bg-red-950 text-red-600 dark:text-red-400"
               >
                 <LogOut className="w-5 h-5" />
                 <span className="font-bold">SAIR</span>
               </button>
+
+              <SearchButton
+                open={searchOpen}
+                onClick={() => (searchOpen ? closeSearch() : openSearch())}
+                className="ml-2"
+              />
             </nav>
           </div>
 
@@ -194,6 +230,8 @@ export function Root() {
             </nav>
           )}
         </div>
+
+        <SearchPanel open={searchOpen} onClose={closeSearch} />
       </header>
 
       {/* Main Content */}

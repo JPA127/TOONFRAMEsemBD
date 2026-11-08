@@ -1,17 +1,36 @@
-import { useState } from "react";
-import { Link } from "react-router";
+import { useEffect, useRef, useState } from "react";
+import { Link, useLocation, useSearchParams } from "react-router";
 import { Newspaper, Calendar, User, TrendingUp, Zap } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { ARTICLES, QUICK_NEWS, ACCENT_BAR, QuickNews, formatNewsDate } from "../../lib/news";
+import { QUICK_NEWS_PARAM } from "../../lib/search";
 
 // Notícia rápida: só texto. "LEIA MAIS" aumenta o próprio cartão (sem pop-up).
-function QuickNewsCard({ item }: { item: QuickNews }) {
+// Quando vem da busca (/news?aberta=<id>), o cartão abre sozinho, rola até a tela e ganha um contorno.
+function QuickNewsCard({ item, targeted, focusKey }: { item: QuickNews; targeted: boolean; focusKey: string }) {
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLElement>(null);
   const textId = `noticia-rapida-${item.id}`;
+
+  useEffect(() => {
+    if (!targeted) return;
+    setOpen(true);
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const timer = window.setTimeout(() => {
+      ref.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+      ref.current?.focus({ preventScroll: true });
+    }, 60);
+    return () => window.clearTimeout(timer);
+  }, [targeted, focusKey]);
 
   return (
     <article
-      className="bg-white dark:bg-neutral-900 border-4 border-black dark:border-neutral-400 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[8px_8px_0px_0px_rgba(255,255,255,0.25)] transition-all group"
+      ref={ref}
+      id={`noticia-${item.id}`}
+      tabIndex={-1}
+      className={`bg-white dark:bg-neutral-900 border-4 border-black dark:border-neutral-400 hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[8px_8px_0px_0px_rgba(255,255,255,0.25)] transition-all group scroll-mt-28 ${
+        targeted ? "outline-4 outline-offset-4 outline-yellow-400" : "focus:outline-none"
+      }`}
     >
       <div className={`h-2 ${ACCENT_BAR[item.accent]}`}></div>
       <div className="p-4 sm:p-6">
@@ -47,6 +66,9 @@ function QuickNewsCard({ item }: { item: QuickNews }) {
 }
 
 export function News() {
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const targetId = searchParams.get(QUICK_NEWS_PARAM);
   const featured = ARTICLES.find((a) => a.featured)!;
   const trending = ARTICLES.filter((a) => a.trending);
 
@@ -164,7 +186,7 @@ export function News() {
           </div>
           <div className="space-y-6">
             {QUICK_NEWS.map((item) => (
-              <QuickNewsCard key={item.id} item={item} />
+              <QuickNewsCard key={item.id} item={item} targeted={targetId === item.id} focusKey={location.key} />
             ))}
           </div>
         </div>
